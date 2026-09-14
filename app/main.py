@@ -5,6 +5,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 from app.database import engine, Base
 from app.routers import tasks
+from app.middleware import ProcessTimeMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,7 +19,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Centralized 404/500/Custom HTTP Error Handler
+# Register custom middleware
+app.add_middleware(ProcessTimeMiddleware)
+
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
@@ -31,15 +34,9 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         }
     )
 
-# Centralized Validation Error Handler (Pydantic payload errors)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = []
-    for error in exc.errors():
-        errors.append({
-            "field": " -> ".join([str(loc) for loc in error["loc"]]),
-            "issue": error["msg"]
-        })
+    errors = [{"field": " -> ".join([str(l) for l in err["loc"]]), "issue": err["msg"]} for err in exc.errors()]
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
