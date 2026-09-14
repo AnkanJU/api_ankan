@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    container_name: devflow_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - devflow_data:/app
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/devflow.db
+    restart: always
+
+volumes:
+  devflow_data:
